@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Transaction History</title>
+    <style>
+        /* Reset and base styles */
+        :root {
+            --primary-color: #1a73e8;
+            --text-primary: #333;
+            --text-secondary: #666;
+            --background-primary: #fff;
+            --background-secondary: #f5f5f5;
+            --border-color: #eee;
+            --success-color: #34a853;
+            --error-color: #dc3545;
+            --spacing-unit: 1rem;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+
+        body {
+            background: var(--background-secondary);
+            color: var(--text-primary);
+        }
+
+        /* Layout Components */
+        .header {
+            background: var(--background-primary);
+            padding: var(--spacing-unit);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .upload-section {
+            padding: calc(var(--spacing-unit) * 2) var(--spacing-unit);
+            text-align: center;
+            background: var(--background-primary);
+            margin-bottom: 0.5rem;
+        }
+
+        /* Buttons and Interactive Elements */
+        .btn {
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1rem;
+            padding: 0.8rem 1.5rem;
+        }
+
+        .btn-primary {
+            background: var(--primary-color);
+            color: var(--background-primary);
+        }
+
+        .close-btn {
+            font-size: 1.5rem;
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 0.5rem;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        /* Tabs Component */
+        .tabs {
+            display: flex;
+            background: var(--background-primary);
+            padding: 0 var(--spacing-unit);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .tab {
+            flex: 1;
+            padding: var(--spacing-unit);
+            border: none;
+            background: none;
+            cursor: pointer;
+            color: var(--text-secondary);
+            position: relative;
+        }
+
+        .tab.active {
+            color: var(--primary-color);
+            font-weight: 500;
+        }
+
+        .tab.active::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: var(--primary-color);
+        }
+
+        /* Transaction Components */
+        .balance-summary {
+            background: var(--background-primary);
+            padding: var(--spacing-unit);
+            margin-bottom: 0.5rem;
+        }
+
+        .balance-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.5rem 0;
+        }
+
+        .transaction {
+            background: var(--background-primary);
+            padding: var(--spacing-unit);
+            display: flex;
+            gap: var(--spacing-unit);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .transaction-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #e3f2fd;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .transaction-details {
+            flex: 1;
+        }
+
+        .transaction-title {
+            font-weight: 500;
+            margin-bottom: 0.25rem;
+        }
+
+        .transaction-date {
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+        }
+
+        .transaction-amount {
+            text-align: right;
+            min-width: 100px;
+        }
+
+        .amount {
+            font-weight: 500;
+            margin-bottom: 0.25rem;
+        }
+
+        .amount.positive {
+            color: var(--success-color);
+        }
+
+        .amount.negative {
+            color: var(--text-primary);
+        }
+
+        .balance {
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+        }
+
+        .service-charge {
+            color: var(--error-color);
+            font-size: 0.75rem;
+            margin-top: 0.25rem;
+        }
+
+        /* Month Group Components */
+        .month-group {
+            margin-bottom: 1px;
+        }
+
+        .month-section {
+            background: #f8f9fa;
+            padding: var(--spacing-unit);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+        }
+
+        .month-transactions {
+            display: block;
+        }
+
+        .arrow {
+            transition: transform 0.3s ease;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <button class="close-btn" onclick="TransactionApp.goBack()">×</button>
+        <div class="title">Transaction History</div>
+        <button class="close-btn">⋮</button>
+    </div>
+
+    <div class="upload-section" id="uploadSection">
+        <input type="file" id="fileInput" class="file-input" accept=".pdf">
+        <button class="btn btn-primary" onclick="TransactionApp.initiateUpload()">
+            Upload Statement
+        </button>
+    </div>
+
+    <div id="content" style="display: none;">
+        <div class="tabs">
+            <button class="tab active" onclick="TransactionApp.switchTab('main')">Main Account</button>
+            <button class="tab" onclick="TransactionApp.switchTab('savings')">Savings</button>
+        </div>
+
+        <div class="balance-summary" id="balanceSummary"></div>
+        <div id="transactions"></div>
+    </div>
+
+    <script>
+        // Transaction Application Module
+        const TransactionApp = {
+            state: {
+                currentData: null,
+                currentTab: 'main'
+            },
+
+            // Initialization
+            init() {
+                this.bindEvents();
+            },
+
+            bindEvents() {
+                document.getElementById('fileInput').addEventListener('change', this.handleFileUpload.bind(this));
+            },
+
+            // Navigation
+            goBack() {
+                window.history.back();
+            },
+
+            // File handling
+            initiateUpload() {
+                document.getElementById('fileInput').click();
+            },
+
+            async handleFileUpload(e) {
+                const file = e.target.files[0];
+                if (!file) return;
+
+                const formData = new FormData();
+                formData.append('file', file);
+
+                try {
+                    const response = await fetch('http://localhost:3000/upload', {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    if (!response.ok) throw new Error('Upload failed');
+
+                    this.state.currentData = await response.json();
+                    this.showContent();
+                    this.displayData();
+                } catch (error) {
+                    console.error('Error:', error);
+                    alert('Error processing statement');
+                }
+            },
+
+            // UI State Management
+            showContent() {
+                document.getElementById('uploadSection').style.display = 'none';
+                document.getElementById('content').style.display = 'block';
+            },
+
+            switchTab(tab) {
+                this.state.currentTab = tab;
+                document.querySelectorAll('.tab').forEach(t => {
+                    t.classList.toggle('active', t.textContent.toLowerCase().includes(tab));
+                });
+                if (this.state.currentData) this.displayData();
+            },
+
+            // Formatting Utilities
+            formatters: {
+                amount(amount) {
+                    return new Intl.NumberFormat('en-TZ').format(Math.abs(amount));
+                },
+
+                date(dateStr) {
+                    const [day, month, year] = dateStr.split('/');
+                    const date = new Date(year, month - 1, day);
+                    return date.toLocaleString('en-US', {
+                        month: 'short',
+                        day: 'numeric'
+                    });
+                },
+
+                month(dateStr) {
+                    const [day, month, year] = dateStr.split('/');
+                    const date = new Date(year, month - 1, day);
+                    return date.toLocaleString('en-US', {
+                        month: 'long',
+                        year: 'numeric'
+                    });
+                }
+            },
+
+            getTransactionIcon(type) {
+                const icons = {
+                    'Send Money': '💸',
+                    'Receive Money': '💰',
+                    'Bill Payment': '📄',
+                    'Cash In': '⬇️',
+                    'Cash Out': '⬆️',
+                    'Bank to Wallet': '🏦',
+                    'Wallet To Bank': '🏦',
+                    'Saving Early': '💳',
+                    'Government Payments': '🏛️',
+                    'Kibubu': '💎',
+                    'Promotion': '🎁',
+                };
+                return icons[type] || '💱';
+            },
+
+            // Display Logic
+            displayData() {
+                if (!this.state.currentData) return;
+
+                this.displaySummary();
+                this.displayTransactions();
+            },
+
+            displaySummary() {
+                const summaryHTML = `
+                    <div class="balance-item">
+                        <span>Main Account</span>
+                        <strong>${this.formatters.amount(this.state.currentData.summary.mainBalance)} TSh</strong>
+                    </div>
+                    <div class="balance-item">
+                        <span>Savings Account</span>
+                        <strong>${this.formatters.amount(this.state.currentData.summary.savingsBalance)} TSh</strong>
+                    </div>
+                `;
+                document.getElementById('balanceSummary').innerHTML = summaryHTML;
+            },
+
+            displayTransactions() {
+                const transactions = this.state.currentTab === 'main' ? 
+                    this.state.currentData.mainAccount : this.state.currentData.savingsAccount;
+
+                if (!transactions?.length) {
+                    this.displayEmptyState();
+                    return;
+                }
+
+                const grouped = this.groupTransactionsByMonth(transactions);
+                const html = this.generateTransactionsHTML(grouped);
+                document.getElementById('transactions').innerHTML = html;
+            },
+
+            displayEmptyState() {
+                document.getElementById('transactions').innerHTML = `
+                    <div style="text-align: center; padding: 2rem; color: var(--text-secondary);">
+                        No transactions found
+                    </div>
+                `;
+            },
+
+            groupTransactionsByMonth(transactions) {
+                return transactions.reduce((acc, tx) => {
+                    const month = this.formatters.month(tx.date);
+                    if (!acc[month]) acc[month] = [];
+                    acc[month].push(tx);
+                    return acc;
+                }, {});
+            },
+
+            generateTransactionsHTML(grouped) {
+                return Object.entries(grouped).map(([month, monthTransactions]) => `
+                    <div class="month-group">
+                        <div class="month-section" onclick="TransactionApp.toggleMonth(this)">
+                            <span>${month}</span>
+                            <span class="arrow">▼</span>
+                        </div>
+                        <div class="month-transactions">
+                            ${monthTransactions.map(tx => this.generateTransactionHTML(tx)).join('')}
+                        </div>
+                    </div>
+                `).join('');
+            },
+
+            generateTransactionHTML(tx) {
+                return `
+                    <div class="transaction">
+                        <div class="transaction-icon">
+                            ${this.getTransactionIcon(tx.type)}
+                        </div>
+                        <div class="transaction-details">
+                            <div class="transaction-title">${tx.description || tx.type}</div>
+                            <div class="transaction-date">${this.formatters.date(tx.date)}</div>
+                        </div>
+                        <div class="transaction-amount">
+                            <div class="amount ${tx.amount >= 0 ? 'positive' : 'negative'}">
+                                ${tx.amount >= 0 ? '+' : '-'}${this.formatters.amount(tx.amount)} TSh
+                            </div>
+                            <div class="balance">Balance: ${this.formatters.amount(tx.balance)} TSh</div>
+                            ${tx.serviceCharge ? `
+                                <div class="service-charge">Fee: ${this.formatters.amount(tx.serviceCharge)} TSh</div>
+                            ` : ''}
+                        </div>
+                    </div>
+                `;
+            },
+
+            toggleMonth(element) {
+                const monthGroup = element.parentElement;
+                const transactions = monthGroup.querySelector('.month-transactions');
+                const arrow = element.querySelector('.arrow');
+                
+                if (transactions.style.display === 'none') {
+                    transactions.style.display = 'block';
+                    arrow.textContent = '▲';
+                } else {
+                    transactions.style.display = 'none';
+                    arrow.textContent = '▼';
+                }
+            }
+        };
+
+        // Initialize the application
+        TransactionApp.init();
+    </script>
+</body>
+</html>
