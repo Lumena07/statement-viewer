@@ -7,13 +7,15 @@ const fs = require('fs');
 const path = require('path');
 
 const app = express();
-const upload = multer({ dest: 'uploads/' });
+const upload = multer({ dest: '/tmp/uploads/' }); // Save files temporarily in /tmp for serverless
 
 app.use(cors());
-app.use(express.static('public'));
+
+// Serve static files from the public directory
+app.use(express.static(path.join(__dirname, '../public')));
 
 app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+    res.sendFile(path.join(__dirname, '../public', 'index.html'));
 });
 
 app.post('/upload', upload.single('file'), async (req, res) => {
@@ -22,7 +24,7 @@ app.post('/upload', upload.single('file'), async (req, res) => {
         const data = await pdf(dataBuffer);
         const transactions = parseTransactions(data.text);
         const analysis = analyzeTransactions(transactions);
-        fs.unlinkSync(req.file.path);
+        fs.unlinkSync(req.file.path); // Clean up temporary file
         res.json(analysis);
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -269,7 +271,4 @@ function calculateUpcomingDebits(transactions) {
     }, 0);
 }
 
-const port = 3000;
-app.listen(port, () => {
-    console.log(`Server running on port ${port}`);
-});
+module.exports = app; // Export app for serverless deployment

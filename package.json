@@ -2,14 +2,15 @@
   "name": "statement-viewer",
   "version": "1.0.0",
   "main": "server.js",
+  "type": "commonjs",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node server.js"
+    "start": "node server.js",
+    "vercel-build": "echo \"No build required\""
   },
-  "keywords": [],
-  "author": "",
+  "keywords": ["express", "pdf-parser", "statement-analysis"],
+  "author": "Emma-Alice Kizitto",
   "license": "ISC",
-  "description": "",
+  "description": "An Express-based statement parser and analyzer.",
   "dependencies": {
     "cors": "^2.8.5",
     "express": "^4.21.1",

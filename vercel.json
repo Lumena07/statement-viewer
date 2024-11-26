@@ -1,0 +1,11 @@
+{
+    "functions": {
+      "api/server.js": {
+        "runtime": "nodejs"
+      }
+    },
+    "rewrites": [
+      { "source": "/", "destination": "/api/server" }
+    ]
+  }
+  
