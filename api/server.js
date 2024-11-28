@@ -20,13 +20,18 @@ app.get('/', (req, res) => {
 
 app.post('/upload', upload.single('file'), async (req, res) => {
     try {
+        if (!req.file) {
+            return res.status(400).json({ error: 'No file uploaded' });
+        }
+        
         const dataBuffer = fs.readFileSync(req.file.path);
         const data = await pdf(dataBuffer);
         const transactions = parseTransactions(data.text);
         const analysis = analyzeTransactions(transactions);
-        fs.unlinkSync(req.file.path); // Clean up temporary file
+        fs.unlinkSync(req.file.path);
         res.json(analysis);
     } catch (error) {
+        console.error('Upload error:', error);  // Add logging
         res.status(500).json({ error: error.message });
     }
 });
