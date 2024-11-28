@@ -272,3 +272,8 @@ function calculateUpcomingDebits(transactions) {
 }
 
 module.exports = app; // Export app for serverless deployment
+
+const port = 3000;
+app.listen(port, () => {
+    console.log(`Server running on port ${port}`);
+});
